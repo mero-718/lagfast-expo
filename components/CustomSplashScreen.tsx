@@ -1,30 +1,66 @@
-import { View, Text, StyleSheet } from 'react-native';
-import { useFonts } from 'expo-font';
-import { useEffect } from 'react';
-import * as SplashScreen from 'expo-splash-screen';
+import React, { useEffect } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  Animated, 
+  Dimensions,
+  Image
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+
+const { width, height } = Dimensions.get('window');
 
 export default function CustomSplashScreen() {
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
+  const router = useRouter();
+  const fadeAnim = new Animated.Value(0);
+  const slideAnim = new Animated.Value(50);
 
   useEffect(() => {
-    if (loaded) {
-      // Add a 2-second delay before hiding the splash screen
-      setTimeout(async () => {
-        await SplashScreen.hideAsync();
-      }, 2000);
-    }
-  }, [loaded]);
+    // Fade in animation
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 1500,
+      useNativeDriver: true,
+    }).start();
 
-  if (!loaded) {
-    return null;
-  }
+    // Slide up animation
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 1500,
+      useNativeDriver: true,
+    }).start();
+
+    // Navigate to login after delay
+    const timer = setTimeout(() => {
+      router.replace('/auth/login');
+    }, 4000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>LagFast</Text>
-      <Text style={styles.subtitle}>Manufactured by LabFast</Text>
+      <Animated.View 
+        style={[
+          styles.content,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
+          }
+        ]}
+      >
+        <View style={styles.logoContainer}>
+          <Ionicons name="school" size={80} color="#f4511e" />
+        </View>
+
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>Labfast</Text>
+          <Text style={styles.subtitle}>Student Management App</Text>
+        </View>
+
+      </Animated.View>
     </View>
   );
 }
@@ -33,17 +69,53 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  content: {
     alignItems: 'center',
     justifyContent: 'center',
   },
+  logoContainer: {
+    marginBottom: 30,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  titleContainer: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
   title: {
-    fontSize: 48,
+    fontSize: 36,
     fontWeight: 'bold',
-    color: '#000000',
+    color: '#f4511e',
     marginBottom: 10,
   },
   subtitle: {
     fontSize: 18,
-    color: '#666666',
+    color: '#666',
+    marginTop: 40,
+    textAlign: 'center',
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 50,
+    alignItems: 'center',
+  },
+  footerText: {
+    fontSize: 16,
+    color: '#666',
   },
 }); 

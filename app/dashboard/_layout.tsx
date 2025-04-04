@@ -1,10 +1,6 @@
 import { Stack } from 'expo-router';
-import { useAuthCheck } from '@/hooks/useAuthCheck';
 
-export default function AuthLayout() {
-  // This will check auth status for auth routes
-  useAuthCheck();
-
+export default function DashboardLayout() {
   return (
     <Stack
       screenOptions={{
@@ -17,23 +13,21 @@ export default function AuthLayout() {
         },
       }}>
       <Stack.Screen 
-        name="index"
-        options={{
-          headerShown: false,
-          title: '',
-          headerTitle: ''
-        }}
-      />
-      <Stack.Screen 
-        name="login" 
+        name="index" 
         options={{ 
-          title: 'Login'
+          title: 'Dashboard'
         }} 
       />
       <Stack.Screen 
-        name="register" 
+        name="detail" 
         options={{ 
-          title: 'Register'
+          title: 'Detail'
+        }} 
+      />
+      <Stack.Screen 
+        name="profile" 
+        options={{ 
+          title: 'Profile'
         }} 
       />
     </Stack>

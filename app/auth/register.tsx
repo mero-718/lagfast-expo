@@ -82,10 +82,11 @@ export default function RegisterScreen() {
         });
       }
     } catch (error) {
+      console.error('Registration error:', error);
       Toast.show({
         type: 'error',
         text1: 'Error',
-        text2: 'An unexpected error occurred',
+        text2: error instanceof Error ? error.message : 'An unexpected error occurred',
         position: 'top',
         visibilityTime: 3000,
       });
@@ -95,70 +96,74 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+    <View style={styles.container}>
+      <Text style={styles.title}>Create Account</Text>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardAvoidingView}
       >
-        <Text style={styles.title}>Create Account</Text>
-        <View style={styles.form}>
-          <TextInput
-            style={[styles.input, errors.username ? styles.inputError : null]}
-            placeholder="Enter your username"
-            placeholderTextColor="#999"
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {errors.username ? <Text style={styles.errorText}>{errors.username}</Text> : null}
-          
-          <TextInput
-            style={[styles.input, errors.email ? styles.inputError : null]}
-            placeholder="Enter your email"
-            placeholderTextColor="#999"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
-          
-          <TextInput
-            style={[styles.input, errors.password ? styles.inputError : null]}
-            placeholder="Enter your password"
-            placeholderTextColor="#999"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-          {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
-          
-          <TouchableOpacity 
-            style={styles.button} 
-            onPress={handleRegister}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text style={styles.buttonText}>Register</Text>
-            )}
-          </TouchableOpacity>
-          
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => router.back()}>
-              <Text style={styles.link}>Login</Text>
-            </TouchableOpacity>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.formContainer}>
+            <View style={styles.form}>
+              <TextInput
+                style={[styles.input, errors.username ? styles.inputError : null]}
+                placeholder="Enter your username"
+                placeholderTextColor="#999"
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {errors.username ? <Text style={styles.errorText}>{errors.username}</Text> : null}
+              
+              <TextInput
+                style={[styles.input, errors.email ? styles.inputError : null]}
+                placeholder="Enter your email"
+                placeholderTextColor="#999"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
+              
+              <TextInput
+                style={[styles.input, errors.password ? styles.inputError : null]}
+                placeholder="Enter your password"
+                placeholderTextColor="#999"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+              {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
+              
+              <TouchableOpacity 
+                style={styles.button} 
+                onPress={handleRegister}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#ffffff" />
+                ) : (
+                  <Text style={styles.buttonText}>Register</Text>
+                )}
+              </TouchableOpacity>
+              
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>Already have an account? </Text>
+                <TouchableOpacity onPress={() => router.back()}>
+                  <Text style={styles.link}>Login</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -167,16 +172,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
   scrollContent: {
     flexGrow: 1,
-    padding: 20,
+  },
+  formContainer: {
+    flex: 1,
     justifyContent: 'center',
+    padding: 20,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    marginBottom: 30,
     textAlign: 'center',
+    marginBottom: 10,
+    position: 'absolute',
+    top: 80,
+    left: 0,
+    right: 0,
   },
   form: {
     width: '100%',
@@ -185,7 +200,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     padding: 15,
     borderRadius: 10,
-    marginBottom: 5,
+    marginBottom: 10,
     fontSize: 16,
   },
   inputError: {
@@ -198,7 +213,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   button: {
-    backgroundColor: '#000000',
+    backgroundColor: '#f4511e',
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
@@ -218,7 +233,7 @@ const styles = StyleSheet.create({
     color: '#666666',
   },
   link: {
-    color: '#000000',
+    color: '#f4511e',
     fontWeight: 'bold',
   },
 }); 

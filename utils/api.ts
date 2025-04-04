@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
 
-const API_URL = Constants.expoConfig?.extra?.apiUrl;
+const API_URL = process.env.API_URL || 'http://192.168.244.128:9000';
 
 interface RegisterData {
   username: string;
@@ -36,7 +35,7 @@ const handleResponse = async (response: Response) => {
 
 export const registerUser = async (data: RegisterData): Promise<ApiResponse<any>> => {
   try {    
-    const response = await fetch(`http://192.168.244.128:8000/users`, {
+    const response = await fetch(`${API_URL}/users`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -62,14 +61,14 @@ export const registerUser = async (data: RegisterData): Promise<ApiResponse<any>
     console.error('Registration error:', error);
     return {
       success: false,
-      error: 'Network error occurred',
+      error: error instanceof Error ? error.message : 'An error occurred during registration',
     };
   }
 };
 
 export const loginUser = async (data: LoginData): Promise<ApiResponse<any>> => {
   try {
-    const response = await fetch(`${API_URL}auth/login`, {
+    const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -85,10 +84,11 @@ export const loginUser = async (data: LoginData): Promise<ApiResponse<any>> => {
         error: result.message || 'Login failed',
       };
     }
+    console.log('result', result);
     
     // Store the token in AsyncStorage
-    if (result.token) {
-      await AsyncStorage.setItem('userToken', result.token);
+    if (result.access_token) {
+      await AsyncStorage.setItem('userToken', result.access_token);
     }
     
     return {
@@ -103,11 +103,25 @@ export const loginUser = async (data: LoginData): Promise<ApiResponse<any>> => {
   }
 };
 
+export const userInfo = async () => {
+  try {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_URL}/users/me`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return await handleResponse(response);
+  } catch (error) {
+    throw error;
+  }
+};
+
 // Fetch Users API
 export const fetchUsers = async () => {
   try {
     const token = await getAuthToken();
-    const response = await fetch(`${API_URL}users`, {
+    const response = await fetch(`${API_URL}/users`, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -122,7 +136,7 @@ export const fetchUsers = async () => {
 export const updateUser = async (userId: string, userData: { username: string; email: string; password?: string }) => {
   try {
     const token = await getAuthToken();
-    const response = await fetch(`${API_URL}users/${userId}`, {
+    const response = await fetch(`${API_URL}/users/${userId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -140,7 +154,7 @@ export const updateUser = async (userId: string, userData: { username: string; e
 export const deleteUser = async (userId: string) => {
   try {
     const token = await getAuthToken();
-    const response = await fetch(`${API_URL}users/${userId}`, {
+    const response = await fetch(`${API_URL}/users/${userId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,

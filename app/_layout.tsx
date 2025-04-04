@@ -40,6 +40,18 @@ export default function RootLayout() {
             headerShown: false
           }}
         />
+        <Stack.Screen 
+          name="(dashboard)"
+          options={{
+            headerShown: false
+          }}
+        />
+        <Stack.Screen 
+          name="(profile)"
+          options={{
+            headerShown: false
+          }}
+        />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />
