@@ -56,7 +56,7 @@ export default function CustomSplashScreen() {
         </View>
 
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>Labfast</Text>
+          <Text style={styles.title}>Lagfast</Text>
           <Text style={styles.subtitle}>Student Management App</Text>
         </View>
 

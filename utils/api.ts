@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+// import { webSocketService } from './websocket';
 
-const API_URL = process.env.API_URL || 'http://192.168.244.128:9000';
+export const API_URL = process.env.API_URL || 'http://192.168.244.128:9000';
 
 interface RegisterData {
   username: string;
@@ -19,8 +20,9 @@ interface ApiResponse<T> {
   error?: string;
 }
 
+
 // Helper function to get auth token
-const getAuthToken = async () => {
+export const getAuthToken = async () => {
   return await AsyncStorage.getItem('userToken');
 };
 
@@ -103,6 +105,20 @@ export const loginUser = async (data: LoginData): Promise<ApiResponse<any>> => {
   }
 };
 
+export const loadMessages = async (userId: number) => {
+  try {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_URL}/messages/${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    return await handleResponse(response);
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const userInfo = async () => {
   try {
     const token = await getAuthToken();
@@ -163,5 +179,26 @@ export const deleteUser = async (userId: string) => {
     return await handleResponse(response);
   } catch (error) {
     throw error;
+  }
+};
+
+export const logout = async () => {
+  try {
+    // First, handle WebSocket logout
+    // await webSocketService.logout();
+    
+    // Then clear the token from storage
+    await AsyncStorage.removeItem('userToken');
+    
+    return {
+      success: true,
+      message: 'Logged out successfully'
+    };
+  } catch (error) {
+    console.error('Logout error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'An error occurred during logout'
+    };
   }
 }; 

@@ -252,6 +252,14 @@ export default function DashboardScreen() {
       } 
     },
     { 
+      icon: 'chatbox-sharp', 
+      label: 'Chat', 
+      onPress: () => {
+        closeDrawer();
+        router.push('/chat');
+      } 
+    },
+    { 
       icon: 'settings', 
       label: 'Settings', 
       onPress: () => { 

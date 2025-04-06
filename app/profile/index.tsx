@@ -35,14 +35,7 @@ export default function ProfileScreen() {
         setUser(userData);
       }
     } catch (error) {
-      console.error('Error loading user data:', error);
-      Toast.show({
-        type: 'error',
-        text1: 'Error',
-        text2: 'Failed to load user data',
-        position: 'top',
-        visibilityTime: 3000,
-      });
+      console.error('Error loading user data:', error);      
     } finally {
       setLoading(false);
     }
