@@ -36,10 +36,22 @@ export default function ChatScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [socket, setSocket] = useState<any>(null);
+  const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
 
   useEffect(() => {
     loadUserData();
   }, []);
+
+  useEffect(() => {
+    if (users.length > 0 && onlineUserIds.length > 0) {
+      setUsers(prevUsers => 
+        prevUsers.map(user => ({
+          ...user,
+          isOnline: onlineUserIds.includes(user.id.toString())
+        }))
+      );
+    }
+  }, [onlineUserIds, users]);
 
   const loadUserData = async () => {
     try {
@@ -54,37 +66,6 @@ export default function ChatScreen() {
     }
   };
 
-  const setupSocketListeners = (socketInstance: any) => {
-    // Listen for online users list updates
-    socketInstance.on('online-users', (onlineUsers: string[]) => {
-      console.log('Received online users:', onlineUsers);
-      setUsers(prevUsers => 
-        prevUsers.map(user => ({
-          ...user,
-          isOnline: onlineUsers.includes(user.id)
-        }))
-      );
-    });
-
-    socketInstance.on('user-online', (data: { userId: string }) => {
-      console.log('User came online:', data.userId);
-      setUsers(prevUsers => 
-        prevUsers.map(user => 
-          user.id === data.userId ? { ...user, isOnline: true } : user
-        )
-      );
-    });
-
-    socketInstance.on('user-offline', (data: { userId: string }) => {
-      console.log('User went offline:', data.userId);
-      setUsers(prevUsers => 
-        prevUsers.map(user => 
-          user.id === data.userId ? { ...user, isOnline: false, lastSeen: new Date().toISOString() } : user
-        )
-      );
-    });
-  };
-
   useEffect(() => {
     const initialize = async () => {
       try {
@@ -92,34 +73,32 @@ export default function ChatScreen() {
         if (!token) {
           throw new Error('No token found');
         }
+
+        // Create socket instance
         const socketInstance = initializeSocket(token);
-        
-        // Wait for socket connection before setting up listeners
+
+        // Set up all listeners BEFORE connecting
+        setupSocketListeners(socketInstance);
+
+        // Now set up connection event handlers
         socketInstance.on('connect', () => {
           console.log('Socket connected');
           setSocket(socketInstance);
-          setupSocketListeners(socketInstance);
-          
-          // Request online users list immediately after connection
-          socketInstance.emit('get-online-users');
         });
 
-        // Handle socket errors
         socketInstance.on('error', (error: any) => {
           console.error('Socket error:', error);
         });
 
-        // Handle socket disconnection
         socketInstance.on('disconnect', () => {
           console.log('Socket disconnected');
         });
 
-        // Handle reconnection
         socketInstance.on('reconnect', () => {
           console.log('Socket reconnected');
-          socketInstance.emit('get-online-users');
         });
 
+        // Load users after setting up socket
         await loadUsers();
       } catch (error) {
         console.error('Error initializing socket:', error);
@@ -142,6 +121,50 @@ export default function ChatScreen() {
     };
   }, []);
 
+  const setupSocketListeners = (socketInstance: any) => {
+    // Listen for online users list updates
+    socketInstance.on('online-users', (onlineUsers: string[]) => {
+      console.log('🟢 Received online users list:', onlineUsers);
+      
+      // Update onlineUserIds state
+      setOnlineUserIds(onlineUsers);
+      
+      // Immediately update users' online status
+      setUsers(prevUsers => {
+        const updatedUsers = prevUsers.map(user => ({
+          ...user,
+          isOnline: onlineUsers.includes(user.id.toString())
+        }));
+        console.log('Updated users with online status:', updatedUsers);
+        return updatedUsers;
+      });
+    });
+
+    socketInstance.on('user-online', (data: { userId: string }) => {
+      const userId = data.userId.toString();
+      console.log('🟢 User came online:', userId);
+      setOnlineUserIds(prev => [...new Set([...prev, userId])]);
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user.id.toString() === userId ? { ...user, isOnline: true } : user
+        )
+      );
+    });
+
+    socketInstance.on('user-offline', (data: { userId: string }) => {
+      const userId = data.userId.toString();
+      console.log('🔴 User went offline:', userId);
+      setOnlineUserIds(prev => prev.filter(id => id !== userId));
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user.id.toString() === userId 
+            ? { ...user, isOnline: false, lastSeen: new Date().toISOString() } 
+            : user
+        )
+      );
+    });
+  };
+
   const loadUsers = async () => {
     try {
       setIsLoading(true);
@@ -150,7 +173,15 @@ export default function ChatScreen() {
       // Filter out the current user from the list
       const filteredUsers = fetchedUsers.filter((user: User) => user.id !== currentUser?.id);
       
-      setUsers(filteredUsers);
+      // Set initial users with offline status
+      const initialUsers = filteredUsers.map((user: User) => ({
+        ...user,
+        isOnline: false
+      }));
+      
+      console.log('Setting initial users:', initialUsers);
+      setUsers(initialUsers);
+
     } catch (error) {
       console.error('Error loading users:', error);
     } finally {
