@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// import { webSocketService } from './websocket';
 
 export const API_URL = process.env.API_URL || 'http://192.168.244.128:9000';
 
@@ -20,6 +19,14 @@ interface ApiResponse<T> {
   error?: string;
 }
 
+interface Message {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  timestamp: string;
+  status: 'sent' | 'delivered' | 'read';
+}
 
 // Helper function to get auth token
 export const getAuthToken = async () => {
@@ -86,7 +93,6 @@ export const loginUser = async (data: LoginData): Promise<ApiResponse<any>> => {
         error: result.message || 'Login failed',
       };
     }
-    console.log('result', result);
     
     // Store the token in AsyncStorage
     if (result.access_token) {
@@ -184,21 +190,57 @@ export const deleteUser = async (userId: string) => {
 
 export const logout = async () => {
   try {
-    // First, handle WebSocket logout
-    // await webSocketService.logout();
-    
     // Then clear the token from storage
     await AsyncStorage.removeItem('userToken');
-    
+
     return {
       success: true,
       message: 'Logged out successfully'
     };
   } catch (error) {
-    console.error('Logout error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'An error occurred during logout'
     };
+  }
+};
+
+export const fetchMessages = async (userId: string): Promise<Message[]> => {
+  try {
+    const response = await fetch(`${API_URL}/messages/${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${await AsyncStorage.getItem('userToken')}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch messages');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    throw error;
+  }
+};
+
+export const sendMessage = async (userId: string, content: string): Promise<Message> => {
+  try {
+    const response = await fetch(`${API_URL}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${await AsyncStorage.getItem('userToken')}`,
+      },
+      body: JSON.stringify({
+        receiver_id: userId,
+        content,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to send message');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error sending message:', error);
+    throw error;
   }
 }; 
