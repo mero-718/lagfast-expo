@@ -37,21 +37,11 @@ export default function ChatScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [socket, setSocket] = useState<any>(null);
   const [onlineUserIds, setOnlineUserIds] = useState<string[]>([]);
+  const [forceUpdate, setForceUpdate] = useState(false);
 
   useEffect(() => {
     loadUserData();
   }, []);
-
-  useEffect(() => {
-    if (users.length > 0 && onlineUserIds.length > 0) {
-      setUsers(prevUsers => 
-        prevUsers.map(user => ({
-          ...user,
-          isOnline: onlineUserIds.includes(user.id.toString())
-        }))
-      );
-    }
-  }, [onlineUserIds, users]);
 
   const loadUserData = async () => {
     try {
@@ -84,6 +74,8 @@ export default function ChatScreen() {
         socketInstance.on('connect', () => {
           console.log('Socket connected');
           setSocket(socketInstance);
+          // Force a re-render after socket connection
+          setForceUpdate(prev => !prev);
         });
 
         socketInstance.on('error', (error: any) => {
@@ -96,6 +88,8 @@ export default function ChatScreen() {
 
         socketInstance.on('reconnect', () => {
           console.log('Socket reconnected');
+          // Force a re-render after socket reconnection
+          setForceUpdate(prev => !prev);
         });
 
         // Load users after setting up socket
@@ -119,31 +113,38 @@ export default function ChatScreen() {
         socket.off('reconnect');
       }
     };
-  }, []);
+  }, [forceUpdate]);
 
   const setupSocketListeners = (socketInstance: any) => {
     // Listen for online users list updates
     socketInstance.on('online-users', (onlineUsers: string[]) => {
-      console.log('🟢 Received online users list:', onlineUsers);
+      // Update onlineUserIds state with the received onlineUsers
+      setOnlineUserIds(prev => {
+        const newOnlineUserIds = new Set([...onlineUsers]);
+        const updatedOnlineUserIds = Array.from(newOnlineUserIds);
+        return updatedOnlineUserIds;
+      });
       
-      // Update onlineUserIds state
-      setOnlineUserIds(onlineUsers);
-      
-      // Immediately update users' online status
+      // Update users state directly with the received onlineUsers
       setUsers(prevUsers => {
         const updatedUsers = prevUsers.map(user => ({
           ...user,
           isOnline: onlineUsers.includes(user.id.toString())
         }));
-        console.log('Updated users with online status:', updatedUsers);
         return updatedUsers;
       });
     });
 
     socketInstance.on('user-online', (data: { userId: string }) => {
       const userId = data.userId.toString();
-      console.log('🟢 User came online:', userId);
-      setOnlineUserIds(prev => [...new Set([...prev, userId])]);
+      
+      // Update onlineUserIds state
+      setOnlineUserIds(prev => {
+        const newOnlineUserIds = new Set([...prev, userId]);
+        return Array.from(newOnlineUserIds);
+      });
+      
+      // Update users state directly
       setUsers(prevUsers => 
         prevUsers.map(user => 
           user.id.toString() === userId ? { ...user, isOnline: true } : user
@@ -153,8 +154,14 @@ export default function ChatScreen() {
 
     socketInstance.on('user-offline', (data: { userId: string }) => {
       const userId = data.userId.toString();
-      console.log('🔴 User went offline:', userId);
-      setOnlineUserIds(prev => prev.filter(id => id !== userId));
+      
+      // Update onlineUserIds state
+      setOnlineUserIds(prev => {
+        const newOnlineUserIds = new Set(prev.filter(id => id !== userId));
+        return Array.from(newOnlineUserIds);
+      });
+      
+      // Update users state directly
       setUsers(prevUsers => 
         prevUsers.map(user => 
           user.id.toString() === userId 
@@ -173,13 +180,12 @@ export default function ChatScreen() {
       // Filter out the current user from the list
       const filteredUsers = fetchedUsers.filter((user: User) => user.id !== currentUser?.id);
       
-      // Set initial users with offline status
+      // Set initial users with correct online status
       const initialUsers = filteredUsers.map((user: User) => ({
         ...user,
-        isOnline: false
+        isOnline: onlineUserIds.includes(user.id.toString())
       }));
       
-      console.log('Setting initial users:', initialUsers);
       setUsers(initialUsers);
 
     } catch (error) {
