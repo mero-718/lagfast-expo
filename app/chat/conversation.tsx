@@ -14,11 +14,12 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getSocket } from '../../utils/socket';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { userInfo } from '@/utils/api';
+import { userInfo, fetchMessages } from '@/utils/api';
 
 interface Message {
   id: string;
   senderId: string;
+  receiverId: string;
   content: string;
   timestamp: string;
   status: 'sent' | 'delivered' | 'read';
@@ -38,25 +39,62 @@ export default function ConversationScreen() {
   const [recipient, setRecipient] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const flatListRef = useRef<FlatList>(null);
 
+  // Load current user data
   useEffect(() => {
-    const loadData = async () => {
+    const loadCurrentUser = async () => {
       try {
         const userData = await userInfo();
         if (userData) {
           setCurrentUser(userData);
-          setupSocketListeners();
         }
       } catch (error) {
-        console.error('Error loading user data:', error);
-      } finally {
-        setIsLoading(false);
+        console.error('Error loading current user:', error);
       }
     };
 
-    loadData();
+    loadCurrentUser();
   }, []);
+
+  // Load messages when current user and recipient are available
+  useEffect(() => {
+    const loadMessagesData = async () => {
+      if (currentUser?.id && recipientId) {
+        try {
+          setIsLoadingMessages(true);
+          const messages = await fetchMessages(currentUser.id, recipientId as string);
+          
+          // Format messages to match the Message interface
+          const formattedMessages = messages.map((msg: any) => ({
+            id: msg.id,
+            senderId: msg.senderId,
+            receiverId: msg.receiverId,
+            content: msg.content,
+            timestamp: msg.timestamp,
+            status: msg.status || 'delivered'
+          }));
+          
+          setMessages(formattedMessages);
+        } catch (error) {
+          console.error('Error loading messages:', error);
+        } finally {
+          setIsLoadingMessages(false);
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadMessagesData();
+  }, [currentUser?.id, recipientId]);
+
+  // Setup socket listeners
+  useEffect(() => {
+    if (currentUser?.id) {
+      setupSocketListeners();
+    }
+  }, [currentUser?.id]);
 
   const setupSocketListeners = () => {
     const socket = getSocket();
@@ -65,8 +103,6 @@ export default function ConversationScreen() {
       return;
     }
 
-    console.log('Setting up socket listeners...');
-    
     if (socket.connected) {
       setIsSocketConnected(true);
       if (currentUser && recipientId) {
@@ -146,6 +182,7 @@ export default function ConversationScreen() {
     const message: Message = {
       id: Date.now().toString(),
       senderId: currentUser.id,
+      receiverId: recipientId as string,
       content: newMessage.trim(),
       timestamp: new Date().toISOString(),
       status: 'sent'
@@ -178,26 +215,31 @@ export default function ConversationScreen() {
 
   const renderMessage = ({ item }: { item: Message }) => {
     const isCurrentUser = item.senderId === currentUser?.id;
+    
     return (
-      <View style={[styles.messageContainer, isCurrentUser ? styles.currentUserMessage : styles.otherUserMessage]}>
-        <Text style={styles.messageText}>{item.content}</Text>
-        <Text style={styles.timestamp}>{new Date(item.timestamp).toLocaleTimeString()}</Text>
-        {isCurrentUser && item.status && (
-          <Text style={styles.statusText}>{item.status}</Text>
-        )}
-      </View>
-    );
-  };
-
-  const renderTemporaryMessage = () => {
-    if (!newMessage.trim() || !currentUser) {
-      return null;
-    }
-
-    return (
-      <View style={[styles.messageContainer, styles.currentUserMessage, styles.temporaryMessage]}>
-        <Text style={styles.messageText}>{newMessage}</Text>
-        <Text style={styles.timestamp}>Typing...</Text>
+      <View style={[
+        styles.messageContainer,
+        isCurrentUser ? styles.sentMessage : styles.receivedMessage
+      ]}>
+        <Text style={[
+          styles.messageText,
+          isCurrentUser ? styles.sentMessageText : styles.receivedMessageText
+        ]}>
+          {item.content}
+        </Text>
+        <View style={styles.messageFooter}>
+          <Text style={[
+            styles.timestamp,
+            isCurrentUser ? styles.sentTimestamp : styles.receivedTimestamp
+          ]}>
+            {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </Text>
+          {isCurrentUser && (
+            <Text style={styles.statusText}>
+              {item.status}
+            </Text>
+          )}
+        </View>
       </View>
     );
   };
@@ -223,8 +265,10 @@ export default function ConversationScreen() {
         <Text style={styles.headerTitle}>{recipient?.username || 'Chat'}</Text>
       </View>
 
-      {isLoading ? (
-        <ActivityIndicator style={styles.loadingIndicator} size="large" color="#007AFF" />
+      {isLoadingMessages ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </View>
       ) : (
         <FlatList
           ref={flatListRef}
@@ -245,8 +289,16 @@ export default function ConversationScreen() {
           placeholder="Type a message..."
           multiline
         />
-        <TouchableOpacity style={styles.sendButton} onPress={sendMessage} disabled={!newMessage.trim() || !isSocketConnected}>
-          <Ionicons name="send" size={24} color={!newMessage.trim() || !isSocketConnected ? '#999' : '#007AFF'} />
+        <TouchableOpacity 
+          style={styles.sendButton} 
+          onPress={sendMessage} 
+          disabled={!newMessage.trim() || !isSocketConnected}
+        >
+          <Ionicons 
+            name="send" 
+            size={24} 
+            color={!newMessage.trim() || !isSocketConnected ? '#999' : '#007AFF'} 
+          />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -288,44 +340,52 @@ const styles = StyleSheet.create({
     paddingBottom: 5,
   },
   messageContainer: {
-    padding: 10,
-    borderRadius: 15,
-    marginBottom: 10,
     maxWidth: '80%',
+    marginVertical: 4,
+    padding: 12,
+    borderRadius: 16,
   },
-  currentUserMessage: {
+  sentMessage: {
+    alignSelf: 'flex-end',
     backgroundColor: '#007AFF',
-    alignSelf: 'flex-end',
-    borderBottomRightRadius: 5,
+    borderBottomRightRadius: 4,
   },
-  otherUserMessage: {
-    backgroundColor: '#e5e5ea',
+  receivedMessage: {
     alignSelf: 'flex-start',
-    borderBottomLeftRadius: 5,
-  },
-  temporaryMessage: {
-    backgroundColor: '#d0e8ff',
-    alignSelf: 'flex-end',
-    borderBottomRightRadius: 5,
-    marginHorizontal: 10,
-    marginBottom: 5,
-    opacity: 0.7,
+    backgroundColor: '#E5E5EA',
+    borderBottomLeftRadius: 4,
   },
   messageText: {
     fontSize: 16,
-    color: '#000',
+    lineHeight: 20,
+  },
+  sentMessageText: {
+    color: '#FFFFFF',
+  },
+  receivedMessageText: {
+    color: '#000000',
+  },
+  messageFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 4,
   },
   timestamp: {
-    fontSize: 10,
-    color: '#666',
-    alignSelf: 'flex-end',
-    marginTop: 3,
+    fontSize: 12,
+    marginRight: 4,
+  },
+  sentTimestamp: {
+    color: '#FFFFFF',
+    opacity: 0.8,
+  },
+  receivedTimestamp: {
+    color: '#666666',
   },
   statusText: {
-    fontSize: 10,
-    color: '#a0d0ff',
-    alignSelf: 'flex-end',
-    marginTop: 2,
+    fontSize: 12,
+    color: '#FFFFFF',
+    opacity: 0.8,
   },
   inputContainer: {
     flexDirection: 'row',

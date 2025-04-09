@@ -205,17 +205,28 @@ export const logout = async () => {
   }
 };
 
-export const fetchMessages = async (userId: string): Promise<Message[]> => {
+export const fetchMessages = async (senderId: string, recipientId: string): Promise<Message[]> => {
   try {
-    const response = await fetch(`${API_URL}/messages/${userId}`, {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_URL}/messages/${senderId}/${recipientId}`, {
       headers: {
-        'Authorization': `Bearer ${await AsyncStorage.getItem('userToken')}`,
+        'Content-Type': 'application/json',
       },
     });
+    
     if (!response.ok) {
       throw new Error('Failed to fetch messages');
     }
-    return await response.json();
+    
+    const data = await response.json();
+    return data.map((msg: any) => ({
+      id: msg.id,
+      senderId: msg.sender_id,
+      receiverId: msg.receiver_id,
+      content: msg.content,
+      timestamp: msg.timestamp,
+      status: msg.status || 'delivered'
+    }));
   } catch (error) {
     console.error('Error fetching messages:', error);
     throw error;
